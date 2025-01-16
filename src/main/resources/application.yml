@@ -4,10 +4,10 @@ spring:
   datasource:
     username: root
     password: 1234
-    url: jdbc:mysql://localhost:3306/yosmart?useUnicode=true&characterEncoding=utf8&useSSL=false
+    url: jdbc:mysql://139.159.150.15:3306/yosmart?useUnicode=true&characterEncoding=utf8&useSSL=false
     driver-class-name: com.mysql.cj.jdbc.Driver
   neo4j:
-    uri: bolt://127.0.0.1:7687
+    uri: bolt://139.159.150.15:7687
     authentication:
       username: neo4j
       password: ny040901
