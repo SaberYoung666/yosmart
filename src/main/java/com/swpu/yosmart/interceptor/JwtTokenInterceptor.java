@@ -1,8 +1,8 @@
-package com.swpu.constructionsitesafety.interceptor;
+package com.swpu.yosmart.interceptor;
 
-import com.swpu.constructionsitesafety.context.BaseContext;
-import com.swpu.constructionsitesafety.utils.JwtUtil;
-import com.swpu.constructionsitesafety.utils.ReturnCode;
+import com.swpu.yosmart.context.BaseContext;
+import com.swpu.yosmart.utils.JwtUtil;
+import com.swpu.yosmart.utils.ReturnCode;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

@@ -1,4 +1,4 @@
-package com.swpu.constructionsitesafety.utils;
+package com.swpu.yosmart.utils;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

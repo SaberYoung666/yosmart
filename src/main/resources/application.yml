@@ -1,1 +1,13 @@
-spring.application.name=yosmart
+spring:
+  application:
+    name: yosmart
+  datasource:
+    username: root
+    password: 1234
+    url: jdbc:mysql://localhost:3306/yosmart?useUnicode=true&characterEncoding=utf8&useSSL=false
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  neo4j:
+    uri: bolt://127.0.0.1:7687
+    authentication:
+      username: neo4j
+      password: ny040901

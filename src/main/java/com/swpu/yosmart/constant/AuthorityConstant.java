@@ -1,7 +1,7 @@
-package com.swpu.constructionsitesafety.constant;
+package com.swpu.yosmart.constant;
 
 /**
- * 状态常量，启用或者禁用
+ * 权限常量，管理员或用户
  */
 public class AuthorityConstant {
 

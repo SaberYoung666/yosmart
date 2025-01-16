@@ -1,9 +1,6 @@
-package com.swpu.constructionsitesafety.handler;
+package com.swpu.yosmart.handler;
 
-import com.swpu.constructionsitesafety.utils.ResultData;
-import com.swpu.constructionsitesafety.utils.ReturnCode;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /**

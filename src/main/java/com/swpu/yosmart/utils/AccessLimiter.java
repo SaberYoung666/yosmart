@@ -1,4 +1,4 @@
-package com.swpu.constructionsitesafety.utils;
+package com.swpu.yosmart.utils;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;

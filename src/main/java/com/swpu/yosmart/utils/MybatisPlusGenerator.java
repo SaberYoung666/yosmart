@@ -1,4 +1,4 @@
-package com.swpu.constructionsitesafety.utils;
+package com.swpu.yosmart.utils;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.generator.FastAutoGenerator;
@@ -11,7 +11,7 @@ import java.util.List;
 
 public class MybatisPlusGenerator {
 	public static void main(String[] args) {
-		FastAutoGenerator.create("jdbc:mysql://localhost:3306/site_safety?useSSL=false&serverTimezone=UTC&serverTimezone=CTT", "root", "123456")
+		FastAutoGenerator.create("jdbc:mysql://localhost:3306/yosmart?useSSL=false&serverTimezone=UTC", "root", "1234")
 				// 全局配置
 				.globalConfig((scanner, builder) -> builder.author(scanner.apply("请输入作者名称？")))
 				// 包配置

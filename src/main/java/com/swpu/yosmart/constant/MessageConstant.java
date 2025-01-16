@@ -1,4 +1,4 @@
-package com.swpu.constructionsitesafety.constant;
+package com.swpu.yosmart.constant;
 
 /**
  * 信息提示常量类

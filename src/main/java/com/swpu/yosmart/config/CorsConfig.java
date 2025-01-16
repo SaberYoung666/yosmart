@@ -1,4 +1,4 @@
-package com.swpu.constructionsitesafety.config;
+package com.swpu.yosmart.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

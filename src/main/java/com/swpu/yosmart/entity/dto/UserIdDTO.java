@@ -1,4 +1,4 @@
-package com.swpu.constructionsitesafety.entity.dto;
+package com.swpu.yosmart.entity.dto;
 
 import lombok.Getter;
 import lombok.Setter;

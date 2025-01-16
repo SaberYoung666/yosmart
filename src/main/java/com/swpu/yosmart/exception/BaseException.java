@@ -1,4 +1,4 @@
-package com.swpu.constructionsitesafety.exception;
+package com.swpu.yosmart.exception;
 
 /**
  * 业务异常

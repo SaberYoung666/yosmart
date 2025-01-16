@@ -1,4 +1,4 @@
-package com.swpu.constructionsitesafety.config;
+package com.swpu.yosmart.config;
 
 import com.baomidou.mybatisplus.annotation.DbType;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
