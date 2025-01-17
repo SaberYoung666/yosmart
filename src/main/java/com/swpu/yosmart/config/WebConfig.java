@@ -22,6 +22,7 @@ public class WebConfig implements WebMvcConfigurer {
 		List<String> excludePath = new ArrayList<String>();
 		excludePath.add("/user/login");
 		excludePath.add("/user/register");
+		excludePath.add("/user/get");
 		// 登录和注册接口不拦截
 		registry.addInterceptor(jwtTokenInterceptor).excludePathPatterns(excludePath);
 	}

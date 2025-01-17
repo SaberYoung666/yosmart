@@ -46,6 +46,7 @@ public class TaskController {
 		}
 		LocalDateTime now = LocalDateTime.now();
 
+		// 属性赋值
 		TaskEntity task = new TaskEntity();
 		task.setDescription(addTaskDTO.getDescription());
 		task.setPriority(addTaskDTO.getPriority());
@@ -79,7 +80,12 @@ public class TaskController {
 
 	@DeleteMapping("/delete")
 	public ResultData<Boolean> deleteTask(@RequestBody TaskEntityIdDTO taskEntityIdDTO) {
+		taskRepository.deleteById(taskEntityIdDTO.getTaskId());
+		return ResultData.success("删除成功");
+	}
 
+	@PostMapping("/update")
+	public ResultData<Boolean> updateTask(@RequestBody TaskEntityIdDTO taskEntityIdDTO) {
 		return ResultData.success();
 	}
 }

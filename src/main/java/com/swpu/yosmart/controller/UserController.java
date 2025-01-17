@@ -129,4 +129,17 @@ public class UserController {
 		user.setName(updateNameDTO.getNewName());
 		return ResultData.success(userService.updateById(user));
 	}
+
+	@GetMapping("/get")
+	public ResultData<Boolean> getUserByName(@RequestParam String userName) {
+		QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+		queryWrapper.eq("name", userName);
+		User user = userService.getOne(queryWrapper);
+		if (user == null) {
+			log.info("不存在用户{}", userName);
+			return ResultData.success(false);
+		}
+		log.info("用户{}已存在", userName);
+		return ResultData.success(true);
+	}
 }
