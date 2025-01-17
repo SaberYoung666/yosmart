@@ -12,6 +12,7 @@ import com.swpu.yosmart.repository.UserRepository;
 import com.swpu.yosmart.service.IUserService;
 import com.swpu.yosmart.utils.ResultData;
 import lombok.extern.slf4j.Slf4j;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static com.swpu.yosmart.utils.DeepSeek.askQuestion;
 import static com.swpu.yosmart.utils.ReturnCode.RC500;
 
 @RestController
@@ -88,4 +90,6 @@ public class TaskController {
 	public ResultData<Boolean> updateTask(@RequestBody TaskEntityIdDTO taskEntityIdDTO) {
 		return ResultData.success();
 	}
+
+
 }
