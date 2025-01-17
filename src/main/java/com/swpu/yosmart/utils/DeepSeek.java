@@ -15,7 +15,7 @@ import java.time.format.DateTimeFormatter;
 public class DeepSeek {
 
     private static final String API_URL = "https://api.deepseek.com/v1/chat/completions";
-    private static final String API_KEY = "sk-3e831120b97141af90c3ce5720393c94"; // 替换为你的 API Key
+    private static final String API_KEY = "sk-3e831120b97141af90c3ce5720393c94";
 
     /**
      * 解析任务描述并返回 JSON 格式的结果
