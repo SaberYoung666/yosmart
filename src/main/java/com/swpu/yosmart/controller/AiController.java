@@ -1,7 +1,6 @@
 package com.swpu.yosmart.controller;
 
 import com.swpu.yosmart.entity.dto.AiDTO;
-import com.swpu.yosmart.utils.ResultData;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
 import org.springframework.web.bind.annotation.PostMapping;
