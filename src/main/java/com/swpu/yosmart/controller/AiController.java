@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import static com.swpu.yosmart.utils.DeepSeek.askQuestion;
+
 @RestController
 @RequestMapping("/ai")
 @Slf4j

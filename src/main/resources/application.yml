@@ -1,13 +1,15 @@
 spring:
   application:
     name: yosmart
+  # 关系型数据库部署在华为云，ip端口为139.159.150.15:3306
   datasource:
     username: root
-    password: 1234
+    password: Ysb040901!
     url: jdbc:mysql://139.159.150.15:3306/yosmart?useUnicode=true&characterEncoding=utf8&useSSL=false
     driver-class-name: com.mysql.cj.jdbc.Driver
+  # Neo4j图数据库部署在腾讯云，ip端口为1.12.74.99：7687
   neo4j:
-    uri: bolt://139.159.150.15:7687
+    uri: bolt://1.12.74.99:7687
     authentication:
       username: neo4j
       password: ny040901

@@ -19,7 +19,7 @@ public class WebConfig implements WebMvcConfigurer {
 	@Override
 	public void addInterceptors(InterceptorRegistry registry) {
 		// 放行的接口路径
-		List<String> excludePath = new ArrayList<String>();
+		List<String> excludePath = new ArrayList<>();
 		excludePath.add("/user/login");
 		excludePath.add("/user/register");
 		excludePath.add("/user/get");
