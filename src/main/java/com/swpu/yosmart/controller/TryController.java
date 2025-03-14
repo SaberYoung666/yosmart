@@ -8,10 +8,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import static com.swpu.yosmart.utils.DeepSeek.askQuestion;
-
-
-
 @Slf4j
 @RestController
 @RequestMapping()
