@@ -106,6 +106,17 @@
             <artifactId>json</artifactId>
             <version>20231013</version>
         </dependency>
+        <!-- ok的Http连接池 -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>3.11.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.ant</groupId>
+            <artifactId>ant</artifactId>
+            <version>1.9.4</version>
+        </dependency>
     </dependencies>
 
     <build>
