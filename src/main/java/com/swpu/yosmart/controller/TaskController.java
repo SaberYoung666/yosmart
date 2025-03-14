@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import static com.swpu.yosmart.utils.DeepSeek.askQuestion;
+
 import static com.swpu.yosmart.utils.ReturnCode.RC500;
 
 @RestController
