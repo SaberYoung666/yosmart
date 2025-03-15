@@ -6,5 +6,5 @@ import lombok.Setter;
 @Getter
 @Setter
 public class TaskEntityIdDTO {
-	private Long taskId;
+	private String elementId;
 }

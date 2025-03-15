@@ -3,7 +3,6 @@ package com.swpu.yosmart.entity.dto;
 import com.swpu.yosmart.entity.EnvironmentEntity;
 import com.swpu.yosmart.entity.ResourceEntity;
 import com.swpu.yosmart.entity.TaskEntity;
-import com.swpu.yosmart.entity.UserEntity;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.neo4j.core.schema.Relationship;
@@ -17,6 +16,7 @@ import java.util.List;
 public class AddTaskDTO {
 	private String description;
 	private Integer priority;
+	private Boolean repeat;
 	private LocalDateTime startTime;
 	private LocalDateTime endTime;
 	private Integer estimatedTime;
