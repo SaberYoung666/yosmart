@@ -15,5 +15,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/ai")
 @Slf4j
 public class AiController {
-
+   /* @PostMapping("/fuzzyInput")
+    public String fuzzyInput(@RequestBody AiDTO aiDTO){
+        JSONObject result = DeepSeekClient.planTasks();
+    }
+*/
 }
