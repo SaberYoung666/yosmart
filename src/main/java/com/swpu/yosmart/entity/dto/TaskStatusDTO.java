@@ -5,6 +5,6 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class TaskEntityIdDTO {
-	private Long taskId;
+public class TaskStatusDTO {
+	private Integer status;
 }

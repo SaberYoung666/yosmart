@@ -1,16 +1,16 @@
 package com.swpu.yosmart.service;
 
+import com.swpu.yosmart.entity.WorkTime;
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.swpu.yosmart.entity.User;
 
 /**
  * <p>
- * 服务类
+ *  服务类
  * </p>
  *
  * @author saber
- * @since 2025-01-15
+ * @since 2025-03-16
  */
-public interface IUserService extends IService<User> {
+public interface IWorkTimeService extends IService<WorkTime> {
 
 }

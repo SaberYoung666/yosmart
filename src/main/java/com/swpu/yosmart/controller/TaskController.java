@@ -5,15 +5,16 @@ import com.swpu.yosmart.context.BaseContext;
 import com.swpu.yosmart.entity.TaskEntity;
 import com.swpu.yosmart.entity.User;
 import com.swpu.yosmart.entity.UserEntity;
-import com.swpu.yosmart.entity.dto.AddTaskDTO;
-import com.swpu.yosmart.entity.dto.TaskEntityIdDTO;
-import com.swpu.yosmart.entity.dto.TaskPromptDTO;
+import com.swpu.yosmart.entity.dto.*;
 import com.swpu.yosmart.entity.dto.apidto.SubTaskDTO;
 import com.swpu.yosmart.entity.dto.apidto.TaskContentDTO;
 import com.swpu.yosmart.entity.vo.TaskVO;
+import com.swpu.yosmart.exception.AIIllegalOutputException;
+import com.swpu.yosmart.exception.TaskNotFoundException;
 import com.swpu.yosmart.exception.UserNotFoundException;
 import com.swpu.yosmart.repository.TaskRepository;
 import com.swpu.yosmart.repository.UserRepository;
+import com.swpu.yosmart.service.ITaskService;
 import com.swpu.yosmart.service.IUserService;
 import com.swpu.yosmart.utils.DeepSeekClient;
 import com.swpu.yosmart.utils.JsonParserUtil;
@@ -38,12 +39,15 @@ import static com.swpu.yosmart.utils.ReturnCode.RC500;
 @Slf4j
 public class TaskController {
 	// TODO 暂时所有的查询都不向用户展示依赖关系，因为若用户想调整依赖关系会比较麻烦
+	// TODO 暂时所有的查询任务接口都不查询存在分解任务的任务，只展示分解后的子任务
 	@Autowired
 	private TaskRepository taskRepository;
 	@Autowired
 	private UserRepository userRepository;
 	@Autowired
 	private IUserService userService;
+	@Autowired
+	private ITaskService taskService;
 
 	/**
 	 * 添加单个任务（用户手动输入任务进行添加）
@@ -97,14 +101,48 @@ public class TaskController {
 	 */
 	@PostMapping("/plan")
 	public ResultData<Object> planTask(@RequestBody TaskPromptDTO promptDTO) throws IOException {
-		User user = userService.getById(BaseContext.getUserId());
-		Optional<UserEntity> userEntity = userRepository.findById(user.getName());
-		// TODO 这里后续需要根据userId查询他近期的任务作为提示词输入
+		// 查询用户将来五天的任务作为提示词输入
+		StringBuilder existTasks = new StringBuilder();
+		for (int i = 0;i < 5;i++) {
+			List<TaskVO> oneDayTaskVOS = taskService.getOneDayTaskVOS(LocalDate.now().plusDays(i));
+			if (!oneDayTaskVOS.isEmpty()) {
+				oneDayTaskVOS.forEach(oneDayTaskVO -> {
+					existTasks.append("{").append(oneDayTaskVO.getDescription()).append(",StartTime:").append(oneDayTaskVO.getStartTime()).append(",EndTime:").append(oneDayTaskVO.getEndTime()).append(",Priority:").append(oneDayTaskVO.getPriority()).append("}\n");
+				});
+			}
+
+		}
+		// 用户输入的将要解析的提示词
 		String taskPrompt = promptDTO.getTaskPrompt();
-		String existTasks = "";
-		// TODO 加入重试机制，若输出不合法，重新请求
-		String plannedTasks = DeepSeekClient.planTasksWithRetry(existTasks, taskPrompt);
-		Object parse = JsonParserUtil.parse(plannedTasks);
+
+		String plannedTasks = DeepSeekClient.planTasksWithRetry(existTasks.toString(), taskPrompt);
+		// 当前重试次数和最大重试次数
+		int attempts = 0;
+		int maxAttempts = 3;
+		Object parse = null;
+		// 循环尝试执行
+		while (attempts < maxAttempts) {
+			try {
+				parse = JsonParserUtil.parse(plannedTasks);
+				break;
+			} catch (Exception e) {
+				attempts++;
+				log.error("AI输出出现错误{}, 正在重试第{}/{}次", e.getMessage(), attempts, maxAttempts);
+				if (attempts < maxAttempts) {
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException ex) {
+						throw new RuntimeException(ex);
+					}
+				}
+			}
+		}
+
+		// 如果所有尝试都失败，抛出异常
+		if (attempts >= maxAttempts) {
+			throw new AIIllegalOutputException("重试3次后AI仍无法按规则输出，请调整大模型配置");
+		}
+
 		return ResultData.success(parse);
 	}
 
@@ -183,6 +221,7 @@ public class TaskController {
 
 	@GetMapping("/list")
 	public ResultData<List<TaskEntity>> listTask() {
+		// TODO 修改查询逻辑
 		String userName = userService.getById(BaseContext.getUserId()).getName();
 		Optional<UserEntity> userEntity = userRepository.findById(userName);
 		UserEntity user = userEntity.orElseThrow(() ->
@@ -194,32 +233,51 @@ public class TaskController {
 
 	@DeleteMapping("/delete")
 	public ResultData<Boolean> deleteTask(@RequestBody TaskEntityIdDTO taskEntityIdDTO) {
-		// TODO 理清删除逻辑
-		log.info("要删除的任务的id是{}", taskEntityIdDTO.getElementId());
+		// 父任务应当是无法删除的，因为用户在执行插入之后将永远不会见到父任务，因此将不会产生自由任务节点
+		log.info("要删除的任务的id是{}", taskEntityIdDTO.getTaskId());
 
-//		// 判断要删除的任务是否属于当前用户
-//		String userName = userService.getById(BaseContext.getUserId()).getName();
-//		Optional<UserEntity> userEntity = userRepository.findById(userName);
-//		Optional<TaskEntity> taskEntity = taskRepository.findById(taskEntityIdDTO.getTaskId());
-//
-//		UserEntity user = userEntity.orElseThrow(() ->
-//				new UserNotFoundException(userName)
-//		);
-//		TaskEntity task = taskEntity.orElseThrow(() ->
-//				new TaskNotFoundException(taskEntityIdDTO.getTaskId())
-//		);
+		// 判断要删除的任务是否属于当前用户,以及任务是否存在
+		String userName = userService.getById(BaseContext.getUserId()).getName();
+		Optional<UserEntity> userEntity = userRepository.findById(userName);
+		Optional<TaskEntity> taskEntity = taskRepository.findById(taskEntityIdDTO.getTaskId());
 
-//		if (task.getAssignedTo().contains(user)) {
-//			taskRepository.deleteById(taskEntityIdDTO.getElementId());
-//			return ResultData.success("删除成功");
-		//}
-//		return ResultData.fail(RC404.getCode(), "任务不属于当前用户");
-		return ResultData.fail(RC404.getCode(), "接口暂停使用");
+		UserEntity user = userEntity.orElseThrow(() ->
+				new UserNotFoundException(userName)
+		);
+		TaskEntity task = taskEntity.orElseThrow(() ->
+				new TaskNotFoundException(taskEntityIdDTO.getTaskId())
+		);
+		if (taskRepository.isTaskRelatedToPerson(user.getName(), task.getId())) {
+			taskRepository.deleteById(taskEntityIdDTO.getTaskId());
+			// 删除可能产生的孤立节点（一般不会出现这种情况）
+			taskRepository.clearTask();
+			return ResultData.success("删除成功");
+		} else {
+			return ResultData.fail(RC404.getCode(), "任务不属于当前用户");
+		}
 	}
 
+	/**
+	 * 修改任务
+	 *
+	 * @param taskUpdateDTO
+	 * @return
+	 */
 	@PostMapping("/update")
-	public ResultData<Object> updateTask(@RequestBody TaskEntity taskEntity) {
-		return ResultData.success();
+	public ResultData<Boolean> updateTask(@RequestBody TaskUpdateDTO taskUpdateDTO) {
+		// 先判断这个任务是否和当前用户相关
+		String userName = userService.getById(BaseContext.getUserId()).getName();
+		Optional<UserEntity> userEntity = userRepository.findById(userName);
+		UserEntity user = userEntity.orElseThrow(() ->
+				new UserNotFoundException(userName)
+		);
+		if (taskRepository.isTaskRelatedToPerson(user.getName(), taskUpdateDTO.getId())) {
+			// 修改任务
+			taskRepository.updateTask(taskUpdateDTO.getId(), taskUpdateDTO.getDescription(), taskUpdateDTO.getPriority(), taskUpdateDTO.getRepeat(), taskUpdateDTO.getStartTime(), taskUpdateDTO.getEndTime(), taskUpdateDTO.getStatus(), taskUpdateDTO.getTags(), LocalDateTime.now());
+			return ResultData.success("更新成功");
+		} else {
+			return ResultData.fail(RC404.getCode(), "任务不属于当前用户");
+		}
 	}
 
 	/**
@@ -229,33 +287,24 @@ public class TaskController {
 	 */
 	@GetMapping("/getToday")
 	public ResultData<List<TaskVO>> getTodayTask() {
-		// 确认用户，确保查询的是当前用户的日程
-		String userName = userService.getById(BaseContext.getUserId()).getName();
-		Optional<UserEntity> userEntity = userRepository.findById(userName);
-		UserEntity user = userEntity.orElseThrow(() ->
-				new UserNotFoundException(userName)
-		);
-		// 再查询与该用户有关的日程中，开始时间与结束时间包含今天的所有日程（应当是结束时间大于等于今天0点0分且开始时间小于等于今天23点59分）
-		LocalDateTime today = LocalDate.now().atStartOfDay();
-		LocalDateTime tomorrow = LocalDate.now().plusDays(1).atStartOfDay();
-		List<TaskEntity> taskEntities = taskRepository.todayTasks(today, tomorrow);
+		List<TaskVO> taskVOList = taskService.getOneDayTaskVOS(LocalDate.now());
+		return ResultData.success(taskVOList);
+	}
 
-		// 遍历，用VO类包装
+	/**
+	 * 根据状态获取当日日程
+	 *
+	 * @param taskStatusDTO
+	 * @return
+	 */
+	@GetMapping("/getTodayByStatus")
+	public ResultData<List<TaskVO>> getTodayTaskByStatus(@RequestBody TaskStatusDTO taskStatusDTO) {
+		Integer status = taskStatusDTO.getStatus();
 		List<TaskVO> taskVOList = new ArrayList<>();
-		taskEntities.forEach(taskEntity -> {
-			log.info(taskEntity.getDescription());
-			TaskVO taskVO = new TaskVO();
-			taskVO.setId(taskEntity.getId());
-			taskVO.setDescription(taskEntity.getDescription());
-			taskVO.setPriority(taskEntity.getPriority());
-			taskVO.setRepeat(taskEntity.getRepeat());
-			// 对于重复日程，把开始日期和结束日期都限定为今天，时间不变
-			taskVO.setStartTime(taskEntity.getStartTime());
-			taskVO.setEndTime(taskEntity.getEndTime());
-			taskVO.setTags(taskEntity.getTags());
-			taskVO.setCreatedAt(taskEntity.getCreatedAt());
-			taskVO.setUpdatedAt(taskEntity.getUpdatedAt());
-			taskVOList.add(taskVO);
+		taskService.getOneDayTaskVOS(LocalDate.now()).forEach(taskVO -> {
+			if (taskVO.getStatus().equals(status)) {
+				taskVOList.add(taskVO);
+			}
 		});
 		return ResultData.success(taskVOList);
 	}

@@ -15,12 +15,39 @@ public interface TaskRepository extends Neo4jRepository<TaskEntity, Long> {
 	@Query("MATCH (p:Person {name: $userName})-[:ASSIGNED_TO]->(t:Task) RETURN t")
 	List<TaskEntity> findByAssignedToUser(@Param("userName") String userName);
 
-	@Query("MATCH (p:Person)-[:ASSIGNED_TO]->(m:Task)-[:DEPENDS_ON]->(s:Task)  WHERE id(s) = $taskId RETURN COUNT(p) > 0 AS isRelated")
-	Boolean isTaskRelatedToPerson(@Param("taskId") Long taskId);
+	/**
+	 * 判断某个任务是否和某个用户关联
+	 *
+	 * @param taskId
+	 * @return
+	 */
+	@Query("MATCH (p:Person {name: $userName}) MATCH (t:Task) WHERE id(t) = $taskId RETURN EXISTS { MATCH (p)-[:ASSIGNED_TO]->(:Task)-[:DEPENDS_ON*0..]->(t) } AS isRelated")
+	Boolean isTaskRelatedToPerson(@Param("userName") String userName, @Param("taskId") Long taskId);
 
-	@Query("MATCH (t:Task) WHERE id(t) = $taskId SET t.description = $description, t.priority = $priority, t.status = $status, t.tags = $tags")
-	void updateTask(@Param("taskId") Long taskId, @Param("description") String description, @Param("priority") Integer priority, @Param("status") Integer status, @Param("tags") List<String> tags);
+	@Query("MATCH (t:Task) WHERE id(t) = $taskId SET t.description = $description, t.priority = $priority, t.repeat = $repeat, t.startTime = $startTime, t.endTime = $endTime, t.status = $status, t.tags = $tags, t.updatedAt = $updatedAt")
+	void updateTask(@Param("taskId") Long taskId, @Param("description") String description, @Param("priority") Integer priority, @Param("repeat") Boolean repeat, @Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime, @Param("status") Integer status, @Param("tags") List<String> tags, @Param("updatedAt") LocalDateTime updatedAt);
 
-	@Query("MATCH (t:Task) WHERE t.startTime < $tomorrow AND t.endTime >= $today AND NOT EXISTS { MATCH (p:Person)-[:ASSIGNED_TO]->(t)-[:DEPENDS_ON]->(s:Task) } RETURN t")
-	List<TaskEntity> todayTasks(@Param("today") LocalDateTime today, @Param("tomorrow") LocalDateTime tomorrow);
+	/**
+	 * 查询某段时间中某用户的全部任务
+	 *
+	 * <p> 示例： </p>
+	 * <ul>
+	 *     开始时间为当前日期00：00，结束时间为当前日期之后一天的00：00
+	 *     <br>
+	 *     结果为返回当前日期内的所有任务
+	 * </ul>
+	 *
+	 * @param userName
+	 * @param startTime
+	 * @param endTime
+	 * @return
+	 */
+	@Query("MATCH (t:Task) WHERE t.startTime < $startTime AND t.endTime >= $endTime AND NOT EXISTS { MATCH (t)-[:DEPENDS_ON]->(:Task) } AND ( EXISTS { MATCH (:Person {name: $userName})-[:ASSIGNED_TO]->(t) } OR EXISTS { MATCH (:Person {name: $userName})-[:ASSIGNED_TO]->(:Task)-[:DEPENDS_ON]->(t) } ) RETURN t")
+	List<TaskEntity> getTasksFromTo(@Param("userName") String userName, @Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
+
+	/**
+	 * 删除数据库中所有的孤立节点
+	 */
+	@Query("MATCH (t:Task) WHERE NOT (t)--() DELETE t")
+	void clearTask();
 }

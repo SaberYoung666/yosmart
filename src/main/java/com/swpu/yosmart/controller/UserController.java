@@ -1,20 +1,23 @@
 package com.swpu.yosmart.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.swpu.yosmart.constant.UserStatusConstant;
 import com.swpu.yosmart.context.BaseContext;
 import com.swpu.yosmart.entity.User;
 import com.swpu.yosmart.entity.UserEntity;
+import com.swpu.yosmart.entity.WorkTime;
 import com.swpu.yosmart.entity.dto.*;
 import com.swpu.yosmart.entity.vo.LoginVO;
 import com.swpu.yosmart.repository.UserRepository;
 import com.swpu.yosmart.service.IUserService;
+import com.swpu.yosmart.service.IWorkTimeService;
 import com.swpu.yosmart.utils.JwtUtil;
 import com.swpu.yosmart.utils.ResultData;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.View;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -40,7 +43,7 @@ public class UserController {
 	@Autowired
 	private UserRepository userRepository;
 	@Autowired
-	private View error;
+	private IWorkTimeService workTimeService;
 
 	@PostMapping("/login")
 	public ResultData<LoginVO> login(@RequestBody LoginDTO loginDTO) {
@@ -56,6 +59,12 @@ public class UserController {
 			if (user == null) {
 				return ResultData.fail(RC401.getCode(), "用户名或密码输入错误");
 			} else {
+				User loginUser = new User();
+				loginUser.setId(user.getId());
+				loginUser.setStatus(UserStatusConstant.ONLINE);
+				loginUser.setLastLoginTime(LocalDateTime.now());
+				userService.updateById(loginUser);
+
 				LoginVO loginVO = new LoginVO();
 				Map<String, Object> claim = new HashMap<>();
 				claim.put("USER_ID", user.getId());
@@ -140,6 +149,33 @@ public class UserController {
 			return ResultData.success(false);
 		}
 		log.info("用户{}已存在", userName);
+		return ResultData.success(true);
+	}
+
+	/**
+	 * 用户退出方法
+	 *
+	 * @return
+	 */
+	@PostMapping("/exit")
+	public ResultData<Boolean> exit() {
+		User user = userService.getById(BaseContext.getUserId());
+		// 计算学习时长
+		LocalDateTime startTime = user.getLastLoginTime();
+		LocalDateTime endTime = LocalDateTime.now();
+		Duration duration = Duration.between(startTime, endTime);
+		Integer minutes = Math.toIntExact(duration.toMinutes());
+		WorkTime workTime = new WorkTime();
+		workTime.setUserId(user.getId());
+		workTime.setStartTime(startTime);
+		workTime.setEndTime(endTime);
+		workTime.setDurationMinutes(minutes);
+		workTimeService.save(workTime);
+		// 修改状态
+		User exitUser = new User();
+		exitUser.setId(user.getId());
+		exitUser.setStatus(UserStatusConstant.OFFLINE);
+		userService.updateById(exitUser);
 		return ResultData.success(true);
 	}
 }
