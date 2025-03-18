@@ -13,3 +13,12 @@ spring:
     authentication:
       username: neo4j
       password: ny040901
+
+  # 设置上传文件的最大大小，默认为 1MB
+  servlet:
+    multipart:
+      max-file-size: 100MB
+  # 设置请求中最大允许的文件大小，默认为 10MB
+      max-request-size: 100MB
+
+

@@ -210,5 +210,99 @@ public class HealthDataServiceImpl implements IHealthDataService {
 
         return result;
     }
+    @Override
+    public List<Map<String, Object>> getSevenHealthData(LocalDate endDate) {
+        Integer userId = BaseContext.getUserId();
+        LocalDate startDate = endDate.minusDays(7);
+
+        // 查询StepCount表中指定日期范围内和用户的数据
+        List<StepCount> stepCountList = stepCountMapper.selectList(
+                new QueryWrapper<StepCount>()
+                        .ge("date", startDate)
+                        .le("date", endDate)
+                        .eq("user_id", userId)
+        );
+
+        // 查询SleepAnalysis表中指定日期范围内和用户的数据
+        List<SleepAnalysis> sleepAnalysisList = sleepAnalysisMapper.selectList(
+                new QueryWrapper<SleepAnalysis>()
+                        .ge("date", startDate)
+                        .le("date", endDate)
+                        .eq("user_id", userId)
+        );
+
+        // 查询HeartRate表中指定日期范围内和用户的数据
+        List<HeartRate> heartRateList = heartRateMapper.selectList(
+                new QueryWrapper<HeartRate>()
+                        .ge("date", startDate)
+                        .le("date", endDate)
+                        .eq("user_id", userId)
+        );
+
+        // 处理步数数据，保留每个日期下的最大值
+        Map<LocalDate, StepCount> maxStepMap = new HashMap<>();
+        for (StepCount step : stepCountList) {
+            LocalDate date = step.getDate();
+            if (!maxStepMap.containsKey(date) || step.getValue() > maxStepMap.get(date).getValue()) {
+                maxStepMap.put(date, step);
+            }
+        }
+
+        // 处理睡眠数据，保留每个日期下的最大值
+        Map<LocalDate, SleepAnalysis> maxSleepMap = new HashMap<>();
+        for (SleepAnalysis sleep : sleepAnalysisList) {
+            LocalDate date = sleep.getDate();
+            if (!maxSleepMap.containsKey(date) || sleep.getValue() > maxSleepMap.get(date).getValue()) {
+                maxSleepMap.put(date, sleep);
+            }
+        }
+
+        // 处理心率数据，保留每个日期下的最大值
+        Map<LocalDate, HeartRate> maxHeartRateMap = new HashMap<>();
+        for (HeartRate heartRate : heartRateList) {
+            LocalDate date = heartRate.getDate();
+            if (!maxHeartRateMap.containsKey(date) || heartRate.getValue() > maxHeartRateMap.get(date).getValue()) {
+                maxHeartRateMap.put(date, heartRate);
+            }
+        }
+
+        // 合并所有存在数据的日期
+        Set<LocalDate> allDates = new HashSet<>(maxStepMap.keySet());
+        allDates.addAll(maxSleepMap.keySet());
+        allDates.addAll(maxHeartRateMap.keySet());
+
+        // 格式化日期
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (LocalDate date : allDates) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("date", date.format(formatter));
+
+            // 添加最大步数
+            StepCount maxStep = maxStepMap.get(date);
+            if (maxStep != null) {
+                map.put("stepCount", maxStep.getValue());
+            }
+
+            // 添加最长睡眠时间
+            SleepAnalysis maxSleep = maxSleepMap.get(date);
+            if (maxSleep != null) {
+                map.put("sleepTime", maxSleep.getValue());
+            }
+
+            // 添加最高心率
+            HeartRate maxHeartRate = maxHeartRateMap.get(date);
+            if (maxHeartRate != null) {
+                map.put("heartRate", maxHeartRate.getValue());
+            } else {
+                map.put("heartRate", null);
+            }
+
+            result.add(map);
+        }
+
+        return result;
+    }
 
 }

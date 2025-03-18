@@ -10,15 +10,21 @@ import com.swpu.yosmart.utils.ResultData;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.w3c.dom.Document;
+import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.*;
 
-import static com.swpu.yosmart.utils.HealthDeepSeekAdvice.getHealthAdvice;
+import static com.swpu.yosmart.utils.ReturnCode.*;
 
 @RestController
 @RequestMapping("/HealthData")
@@ -27,7 +33,7 @@ public class HealthDataController {
     @Autowired
     private IHealthDataService healthDataService;
 
-    @PostMapping("/add")
+/*    @PostMapping("/add")
     public ResultData<Boolean> addHealthData(@RequestBody AddHealthData addHealthData) throws SQLException, IOException, ParserConfigurationException, SAXException {
 
         String xmlFilePath = addHealthData.getXmlFilePath();
@@ -39,6 +45,24 @@ public class HealthDataController {
         System.out.println("数据导入完成！");
         return ResultData.success(true);
 
+    }*/
+    @PostMapping("/add")
+    public ResultData<Boolean> uploadXML(@RequestParam("file") MultipartFile file){
+        if (file.isEmpty()) {
+            return ResultData.fail(RC400.getCode(), "  请选择一个正确的XML 文件");
+        }
+        try {
+            String dbUrl = "jdbc:mysql://139.159.150.15:3306/yosmart?useUnicode=true&characterEncoding=utf8&useSSL=false";
+            String dbUser = "root";
+            String dbPassword = "Ysb040901!";
+            int userId = BaseContext.getUserId(); // 用户 ID
+            HealthDataParserUtil.parseHealthDataToDatabase(file, dbUrl, dbUser, dbPassword, userId);
+            System.out.println("数据导入完成！");
+            return ResultData.success(true);
+        } catch (ParserConfigurationException | SAXException | SQLException |IOException e ) {
+            e.printStackTrace();
+            return ResultData.fail(RC500.getCode(), "系统异常");
+        }
     }
 
     @GetMapping("/getAllHealthData")
@@ -78,7 +102,7 @@ public class HealthDataController {
         // 获取当前日期
         LocalDate currentDate = LocalDate.now();
         // 查询数据
-        List<Map<String, Object>> healthData = healthDataService.getHealthDataByToday(currentDate);
+        List<Map<String, Object>> healthData = healthDataService.getSevenHealthData(currentDate);
 
         String advice = HealthDeepSeekAdvice.getHealthAdvice(healthData);
 

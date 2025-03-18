@@ -21,4 +21,5 @@ public interface IHealthDataService {
      */
     List<Map<String, Object>> getHealthDataByToday(LocalDate date);
     List<Map<String, Object>> getAllHealthData(LocalDate endDate);
+     List<Map<String, Object>> getSevenHealthData(LocalDate endDate);
 }

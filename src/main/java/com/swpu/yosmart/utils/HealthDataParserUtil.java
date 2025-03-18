@@ -1,5 +1,9 @@
 package com.swpu.yosmart.utils;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
+import org.springframework.util.FileCopyUtils;
+import org.springframework.web.multipart.MultipartFile;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -8,7 +12,6 @@ import org.xml.sax.SAXException;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.sql.*;
 import java.time.LocalDate;
@@ -21,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 public class HealthDataParserUtil {
 
     // 数据类型映射
@@ -37,11 +41,10 @@ public class HealthDataParserUtil {
             "HKQuantityTypeIdentifierHeartRate", "average"
     );
 
-    public static void parseHealthDataToDatabase(String xmlFilePath, String dbUrl, String dbUser, String dbPassword, int userId)
+    public static void parseHealthDataToDatabase(MultipartFile file, String dbUrl, String dbUser, String dbPassword, int userId)
             throws IOException, ParserConfigurationException, SAXException, SQLException {
 
-        validateFilePath(xmlFilePath);
-        Map<String, Map<String, Map<String, DailyData>>> deviceData = parseXmlAndGroupByDevice(xmlFilePath);
+        Map<String, Map<String, Map<String, DailyData>>> deviceData = parseXmlAndGroupByDevice(file);
 
         try (Connection conn = DriverManager.getConnection(dbUrl, dbUser, dbPassword)) {
             for (Map.Entry<String, Map<String, Map<String, DailyData>>> deviceEntry : deviceData.entrySet()) {
@@ -56,12 +59,14 @@ public class HealthDataParserUtil {
         }
         System.out.println("数据处理完成，不同设备数据已独立存储");
     }
-
-    private static Map<String, Map<String, Map<String, DailyData>>> parseXmlAndGroupByDevice(String xmlFilePath)
+    private static Map<String, Map<String, Map<String, DailyData>>> parseXmlAndGroupByDevice(MultipartFile file)
             throws ParserConfigurationException, SAXException, IOException {
+        // MultipartFile转File
+        File tempFile = File.createTempFile("temp", null);
+        FileUtils.copyInputStreamToFile(file.getInputStream(), tempFile);
 
         Map<String, Map<String, Map<String, DailyData>>> deviceData = new HashMap<>();
-        Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new File(xmlFilePath));
+        Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(tempFile);
         NodeList records = doc.getElementsByTagName("Record");
 
         ZoneId systemZone = ZoneId.systemDefault();
@@ -103,11 +108,11 @@ public class HealthDataParserUtil {
                     }
                 } else if ("HKQuantityTypeIdentifierHeartRate".equals(type)) {
                     double value = Double.parseDouble(record.getAttribute("value"));
-                    // 可选：过滤异常心率值（如小于30或大于200）
+                    // 可选：过滤异常心率值
                     if (value >= 30 && value <= 200) {
                         dailyData.values.add(value);
                     } else {
-                        System.out.printf("[WARN] 跳过异常心率值 %.1f%n", value);
+                        log.info("[WARN] 跳过异常心率值 %.1f%n", value);
                     }
                 } else {
                     dailyData.values.add(Double.parseDouble(record.getAttribute("value")));
@@ -134,7 +139,7 @@ public class HealthDataParserUtil {
             checkStmt.setString(4, device);
             ResultSet rs = checkStmt.executeQuery();
             if (rs.next() && rs.getInt(1) > 0) {
-                System.out.printf("跳过已存在记录：%s/%s/%s%n", date, recordType, device);
+              /*  System.out.printf("跳过已存在记录：%s/%s/%s%n", date, recordType, device);*/
                 return;
             }
         }
@@ -150,7 +155,7 @@ public class HealthDataParserUtil {
             insertStmt.setString(5, device);
 
             insertStmt.executeUpdate();
-            System.out.printf("成功插入数据：%s/%s/%s%n", date, recordType, device);
+  /*          System.out.printf("成功插入数据：%s/%s/%s%n", date, recordType, device);*/
         }
     }
 
@@ -165,13 +170,6 @@ public class HealthDataParserUtil {
         }
     }
 
-    // 文件校验
-    private static void validateFilePath(String path) throws FileNotFoundException {
-        File file = new File(path);
-        if (!file.exists() || file.isDirectory()) {
-            throw new FileNotFoundException("无效文件路径: " + path);
-        }
-    }
 
     // 辅助方法：计算聚合值
     private static double calculateAggregatedValue(String recordType, List<Double> values) {
