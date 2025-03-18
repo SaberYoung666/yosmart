@@ -1,7 +1,6 @@
 package com.swpu.yosmart.controller;
 
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.swpu.yosmart.service.ITaskService;
 import com.swpu.yosmart.utils.ResultData;
 import lombok.extern.slf4j.Slf4j;
@@ -23,14 +22,7 @@ public class TryController {
      */
 
 	@GetMapping("/try")
-	public ResultData tryit() throws JsonProcessingException {
-//		StringBuilder existTasks = new StringBuilder();
-//		for (int i = 0;i < 5;i++) {
-//			List<TaskVO> oneDayTaskVOS = taskService.getOneDayTaskVOS(LocalDate.now().plusDays(i));
-//			oneDayTaskVOS.forEach(oneDayTaskVO -> {
-//				existTasks.append("{").append(oneDayTaskVO.getDescription()).append(",StartTime:").append(oneDayTaskVO.getStartTime()).append(",EndTime:").append(oneDayTaskVO.getEndTime()).append(",Priority:").append(oneDayTaskVO.getPriority()).append("}\n");
-//			});
-//		}
+	public ResultData tryit() {
 		return ResultData.success();
 	}
 }

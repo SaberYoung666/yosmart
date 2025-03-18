@@ -11,5 +11,4 @@ public class DeepseekConstant {
 	// 3.14 api_key
 	public static final String API_KEY = "sk-8dcb674d63744b09962ac32775814594";
 
-
 }

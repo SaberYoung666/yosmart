@@ -15,6 +15,4 @@ public class BaseContext {
 	public static void removeUserId() {
 		threadLocal.remove();
 	}
-
 }
-

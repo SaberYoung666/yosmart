@@ -5,9 +5,9 @@ package com.swpu.yosmart.constant;
  */
 public class AuthorityConstant {
 
-    //管理员
-    public static final Integer ADMIN = 1;
+	//管理员
+	public static final Integer ADMIN = 1;
 
-    //用户
-    public static final Integer USER = 0;
+	//用户
+	public static final Integer USER = 0;
 }

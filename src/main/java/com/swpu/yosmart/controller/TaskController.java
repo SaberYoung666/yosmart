@@ -45,7 +45,6 @@ public class TaskController {
 	private TaskRepository taskRepository;
 	@Autowired
 	private UserRepository userRepository;
-
 	@Autowired
 	private IUserService userService;
 	@Autowired
@@ -247,23 +246,26 @@ public class TaskController {
 
 	/**
 	 * 修改任务
-	 *
-	 * @param taskUpdateDTO
+	 * @param taskUpdateDTOS
 	 * @return
 	 */
 	@PostMapping("/update")
-	public ResultData<Boolean> updateTask(@RequestBody TaskUpdateDTO taskUpdateDTO) {
+	public ResultData<Boolean> updateTask(@RequestBody List<TaskUpdateDTO> taskUpdateDTOS) {
 		// 先判断这个任务是否和当前用户相关
 		String userName = userService.getById(BaseContext.getUserId()).getName();
 		Optional<UserEntity> userEntity = userRepository.findById(userName);
 		UserEntity user = userEntity.orElseThrow(() -> new UserNotFoundException(userName));
-		if (taskRepository.isTaskRelatedToPerson(user.getName(), taskUpdateDTO.getId())) {
-			// 修改任务
-			taskRepository.updateTask(taskUpdateDTO.getId(), taskUpdateDTO.getDescription(), taskUpdateDTO.getPriority(), taskUpdateDTO.getRepeat(), taskUpdateDTO.getStartTime(), taskUpdateDTO.getEndTime(), taskUpdateDTO.getStatus(), taskUpdateDTO.getTags(), LocalDateTime.now());
-			return ResultData.success("更新成功");
-		} else {
-			return ResultData.fail(RC404.getCode(), "任务不属于当前用户");
+		for (TaskUpdateDTO taskUpdateDTO : taskUpdateDTOS) {
+			String userEntityName = user.getName();
+			Long id = taskUpdateDTO.getId();
+			if (taskRepository.isTaskRelatedToPerson(userEntityName, id)) {
+				// 修改任务
+				taskRepository.updateTask(id, taskUpdateDTO.getDescription(), taskUpdateDTO.getPriority(), taskUpdateDTO.getRepeat(), taskUpdateDTO.getStartTime(), taskUpdateDTO.getEndTime(), taskUpdateDTO.getStatus(), taskUpdateDTO.getTags(), LocalDateTime.now());
+			} else {
+				return ResultData.fail(RC404.getCode(), "任务不属于当前用户");
+			}
 		}
+		return ResultData.success(Boolean.TRUE);
 	}
 
 	/**

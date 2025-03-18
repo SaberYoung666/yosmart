@@ -12,6 +12,7 @@
     <artifactId>yosmart</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>yosmart</name>
+    <packaging>jar</packaging>
     <description>yosmart</description>
     <url/>
     <licenses>
@@ -135,6 +136,22 @@
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <!-- 此处的版本根据实际情况自己调整 -->
+                <version>3.4.1</version>
+                <configuration>
+                    <addResources>true</addResources>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-clean-plugin</artifactId>
