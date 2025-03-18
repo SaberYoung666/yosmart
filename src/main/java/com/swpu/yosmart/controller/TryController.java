@@ -2,7 +2,6 @@ package com.swpu.yosmart.controller;
 
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.swpu.yosmart.entity.vo.TaskVO;
 import com.swpu.yosmart.service.ITaskService;
 import com.swpu.yosmart.utils.ResultData;
 import lombok.extern.slf4j.Slf4j;
@@ -10,9 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.time.LocalDate;
-import java.util.List;
 
 @Slf4j
 @RestController

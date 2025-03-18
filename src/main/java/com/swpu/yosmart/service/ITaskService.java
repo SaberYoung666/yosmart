@@ -16,16 +16,10 @@ public interface ITaskService {
 	List<TaskVO> getOneDayTaskVOS(LocalDate oneDay);
 
 	/**
-	 * 更新指定任务的任务状态
-	 * @param taskId
-	 */
-	void updateTaskStatus(Long taskId, Integer status);
-
-	/**
 	 * 判断一个任务是否属于某个用户
 	 * @param userName
 	 * @param taskId
 	 * @return
 	 */
-	Boolean isRelatedTo(String userName, Long taskId);
+	Boolean isRelatedTo(Long taskId);
 }

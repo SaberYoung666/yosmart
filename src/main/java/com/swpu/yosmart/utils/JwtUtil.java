@@ -30,8 +30,7 @@ public class JwtUtil {
 				// 设置签名使用的签名算法和签名使用的秘钥
 				.signWith(SignatureAlgorithm.HS256, KEY.getBytes(StandardCharsets.UTF_8))
 				// 设置过期时间
-				.setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 48))
-				.compact();
+				.setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 48)).compact();
 	}
 
 	/**

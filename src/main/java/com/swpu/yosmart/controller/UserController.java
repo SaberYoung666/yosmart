@@ -8,6 +8,7 @@ import com.swpu.yosmart.entity.UserEntity;
 import com.swpu.yosmart.entity.WorkTime;
 import com.swpu.yosmart.entity.dto.*;
 import com.swpu.yosmart.entity.vo.LoginVO;
+import com.swpu.yosmart.entity.vo.RecentWorkTimeVO;
 import com.swpu.yosmart.repository.UserRepository;
 import com.swpu.yosmart.service.IUserService;
 import com.swpu.yosmart.service.IWorkTimeService;
@@ -15,16 +16,16 @@ import com.swpu.yosmart.utils.JwtUtil;
 import com.swpu.yosmart.utils.ResultData;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
-import static com.swpu.yosmart.utils.ReturnCode.RC400;
 import static com.swpu.yosmart.utils.ReturnCode.RC401;
+import static com.swpu.yosmart.utils.ReturnCode.RC501;
 
 /**
  * <p>
@@ -80,24 +81,14 @@ public class UserController {
 
 	@PostMapping("/register")
 	public ResultData<Boolean> registerUser(@RequestBody RegisterDTO registerDTO) {
-		User user = new User();
-		boolean mysqlSave;
-		if (registerDTO.getName() == null || registerDTO.getName().isEmpty()) {
-			return ResultData.fail(RC400.getCode(), "用户名为空");
-		} else if (registerDTO.getPassword() == null || registerDTO.getPassword().isEmpty()) {
-			return ResultData.fail(RC400.getCode(), "密码为空");
-		} else {
-			QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-			queryWrapper.eq("name", registerDTO.getName());
-			User one = userService.getOne(queryWrapper);
-			if (one != null) {
-				return ResultData.fail(RC400.getCode(), "该用户已经存在");
-			}
-			user.setName(registerDTO.getName());
-			user.setPassword(registerDTO.getPassword());
-			mysqlSave = userService.save(user);
-			log.info("向mysql中添加用户:{}", registerDTO.getName());
+		if (userService.getOne(new QueryWrapper<User>().eq("name", registerDTO.getName())) != null) {
+			return ResultData.fail(RC501.getCode(), "用户已存在");
 		}
+		User user = new User();
+		user.setName(registerDTO.getName());
+		user.setPassword(registerDTO.getPassword());
+		user.setTelephone(registerDTO.getTelephone());
+		user.setEmail(registerDTO.getEmail());
 
 		// 同步插入到图数据库
 		UserEntity userEntity = new UserEntity();
@@ -106,21 +97,28 @@ public class UserController {
 		userEntity.setCreatedAt(now);
 		userEntity.setUpdatedAt(now);
 		userRepository.save(userEntity);
-		log.info("向neo4j中添加用户节点:{}", registerDTO.getName());
-		return ResultData.success(mysqlSave);
+
+		return ResultData.success(userService.save(user));
 	}
 
+	/**
+	 * 用户修改密码
+	 *
+	 * @param updatePasswordDTO
+	 * @return
+	 */
 	@PostMapping("/updatePassword")
 	public ResultData<Boolean> updatePassword(@RequestBody UpdatePasswordDTO updatePasswordDTO) {
+		String oldPassword = updatePasswordDTO.getOldPassword();
 		String newPassword = updatePasswordDTO.getNewPassword();
-		// 验证输入合法
-		if (newPassword == null || newPassword.isEmpty()) {
-			return ResultData.fail(RC400.getCode(), "新密码为空");
-		} else {
-			User user = userService.getById(BaseContext.getUserId());
+
+
+		User user = userService.getById(BaseContext.getUserId());
+		if (user.getPassword().equals(oldPassword)) {
 			user.setPassword(newPassword);
 			return ResultData.success(userService.updateById(user));
 		}
+		return ResultData.fail(RC401.getCode(), "密码错误");
 	}
 
 	@PostMapping("/deleteUser")
@@ -178,5 +176,15 @@ public class UserController {
 		exitUser.setStatus(UserStatusConstant.OFFLINE);
 		userService.updateById(exitUser);
 		return ResultData.success(true);
+	}
+
+	/**
+	 * 获取用户近七天的工作时长
+	 *
+	 * @return
+	 */
+	@GetMapping("/workTime")
+	public ResultData<List<RecentWorkTimeVO>> getWorkTime() {
+		return ResultData.success(workTimeService.getRecentWorkTimes());
 	}
 }
