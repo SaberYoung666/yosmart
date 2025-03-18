@@ -21,6 +21,7 @@ import com.swpu.yosmart.utils.JsonParserUtil;
 import com.swpu.yosmart.utils.ResultData;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -108,7 +109,7 @@ public class TaskController {
 			List<TaskVO> oneDayTaskVOS = taskService.getOneDayTaskVOS(LocalDate.now().plusDays(i));
 			if (!oneDayTaskVOS.isEmpty()) {
 				oneDayTaskVOS.forEach(oneDayTaskVO -> {
-					existTasks.append("{").append(oneDayTaskVO.getDescription()).append(",StartTime:").append(oneDayTaskVO.getStartTime()).append(",EndTime:").append(oneDayTaskVO.getEndTime()).append(",Priority:").append(oneDayTaskVO.getPriority()).append("}\n");
+					existTasks.append("{").append(oneDayTaskVO.getDescription()).append(",StartTime:").append(oneDayTaskVO.getStartTime()).append(",EndTime:").append(oneDayTaskVO.getEndTime()).append(",Priority:").append(oneDayTaskVO.getPriority()).append("}");
 				});
 			}
 
@@ -141,6 +142,7 @@ public class TaskController {
 
 		// 如果所有尝试都失败，抛出异常
 		if (attempts >= maxAttempts) {
+			log.error("不合法的AI输出：{}", plannedTasks);
 			throw new AIIllegalOutputException("重试3次后AI仍无法按规则输出，请调整大模型配置");
 		}
 
@@ -178,7 +180,8 @@ public class TaskController {
 
 		// 获取子任务的最早开始时间和最晚结束时间，作为主任务的开始和结束时间
 		// 定义时间格式解析器
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm");
+//		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm");
+		DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 		// 解析为 LocalDateTime
 		LocalDateTime earliest = LocalDateTime.parse(subTasks.get(0).getStartTime(), formatter);
 		LocalDateTime latest = LocalDateTime.parse(subTasks.get(subTasks.size() - 1).getEndTime(), formatter);
@@ -220,19 +223,7 @@ public class TaskController {
 		return ResultData.success(Boolean.TRUE);
 	}
 
-	@GetMapping("/list")
-	public ResultData<List<TaskEntity>> listTask() {
-		// TODO 修改查询逻辑
-		String userName = userService.getById(BaseContext.getUserId()).getName();
-		Optional<UserEntity> userEntity = userRepository.findById(userName);
-		UserEntity user = userEntity.orElseThrow(() ->
-				new UserNotFoundException(userName)
-		);
-		List<TaskEntity> taskEntities = taskRepository.findByAssignedToUser(user.getName());
-		return ResultData.success(taskEntities);
-	}
-
-	@DeleteMapping("/delete")
+	@PostMapping("/delete")
 	public ResultData<Boolean> deleteTask(@RequestBody TaskEntityIdDTO taskEntityIdDTO) {
 		// 父任务应当是无法删除的，因为用户在执行插入之后将永远不会见到父任务，因此将不会产生自由任务节点
 		log.info("要删除的任务的id是{}", taskEntityIdDTO.getTaskId());
@@ -242,12 +233,8 @@ public class TaskController {
 		Optional<UserEntity> userEntity = userRepository.findById(userName);
 		Optional<TaskEntity> taskEntity = taskRepository.findById(taskEntityIdDTO.getTaskId());
 
-		UserEntity user = userEntity.orElseThrow(() ->
-				new UserNotFoundException(userName)
-		);
-		TaskEntity task = taskEntity.orElseThrow(() ->
-				new TaskNotFoundException(taskEntityIdDTO.getTaskId())
-		);
+		UserEntity user = userEntity.orElseThrow(() -> new UserNotFoundException(userName));
+		TaskEntity task = taskEntity.orElseThrow(() -> new TaskNotFoundException(taskEntityIdDTO.getTaskId()));
 		if (taskRepository.isTaskRelatedToPerson(user.getName(), task.getId())) {
 			taskRepository.deleteById(taskEntityIdDTO.getTaskId());
 			// 删除可能产生的孤立节点（一般不会出现这种情况）
@@ -269,9 +256,7 @@ public class TaskController {
 		// 先判断这个任务是否和当前用户相关
 		String userName = userService.getById(BaseContext.getUserId()).getName();
 		Optional<UserEntity> userEntity = userRepository.findById(userName);
-		UserEntity user = userEntity.orElseThrow(() ->
-				new UserNotFoundException(userName)
-		);
+		UserEntity user = userEntity.orElseThrow(() -> new UserNotFoundException(userName));
 		if (taskRepository.isTaskRelatedToPerson(user.getName(), taskUpdateDTO.getId())) {
 			// 修改任务
 			taskRepository.updateTask(taskUpdateDTO.getId(), taskUpdateDTO.getDescription(), taskUpdateDTO.getPriority(), taskUpdateDTO.getRepeat(), taskUpdateDTO.getStartTime(), taskUpdateDTO.getEndTime(), taskUpdateDTO.getStatus(), taskUpdateDTO.getTags(), LocalDateTime.now());
@@ -282,14 +267,30 @@ public class TaskController {
 	}
 
 	/**
+	 * 修改任务状态
+	 *
+	 * @param taskUpdateStatusDTO
+	 * @return
+	 */
+	@PostMapping("/update/status")
+	public ResultData<Boolean> updateTaskStatus(@RequestBody TaskUpdateStatusDTO taskUpdateStatusDTO) {
+
+		if (taskService.isRelatedTo(taskUpdateStatusDTO.getTaskId())) {
+			// 修改任务状态
+			taskRepository.updateTaskStatus(taskUpdateStatusDTO.getTaskId(), taskUpdateStatusDTO.getStatus());
+			return ResultData.success("更新成功");
+		}
+		return ResultData.fail(RC404.getCode(), "任务不属于当前用户");
+	}
+
+	/**
 	 * 查询当日日程（完成、未完成、进行中）
 	 *
 	 * @return
 	 */
 	@GetMapping("/getToday")
 	public ResultData<List<TaskVO>> getTodayTask() {
-		List<TaskVO> taskVOList = taskService.getOneDayTaskVOS(LocalDate.now());
-		return ResultData.success(taskVOList);
+		return ResultData.success(taskService.getOneDayTaskVOS(LocalDate.now()));
 	}
 
 	/**
@@ -308,5 +309,14 @@ public class TaskController {
 			}
 		});
 		return ResultData.success(taskVOList);
+	}
+
+	/**
+	 * 获取某日日程
+	 */
+	@GetMapping("/getOneDay")
+	public ResultData<List<TaskVO>> getOneDayTask(@DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+		log.info("查询{}的日程", date);
+		return ResultData.success(taskService.getOneDayTaskVOS(date));
 	}
 }

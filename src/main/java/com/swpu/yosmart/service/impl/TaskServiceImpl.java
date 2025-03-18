@@ -9,6 +9,7 @@ import com.swpu.yosmart.repository.TaskRepository;
 import com.swpu.yosmart.repository.UserRepository;
 import com.swpu.yosmart.service.ITaskService;
 import com.swpu.yosmart.service.IUserService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +23,7 @@ import java.util.Optional;
 /**
  * 任务实现类
  */
+@Slf4j
 @Service
 public class TaskServiceImpl implements ITaskService {
 
@@ -38,8 +40,10 @@ public class TaskServiceImpl implements ITaskService {
 		String userName = userService.getById(BaseContext.getUserId()).getName();
 		Optional<UserEntity> userEntity = userRepository.findById(userName);
 		UserEntity user = userEntity.orElseThrow(() -> new UserNotFoundException(userName));
+		log.info("startTime:{},endTime:{}", oneDay.atStartOfDay(), oneDay.plusDays(1).atStartOfDay());
 		// 查询与该用户有关的日程中，开始时间与结束时间包含该天的所有日程（应当是结束时间大于等于该天0点0分且开始时间小于等于该天23点59分）
 		List<TaskEntity> taskEntities = taskRepository.getTasksFromTo(user.getName(), oneDay.atStartOfDay(), oneDay.plusDays(1).atStartOfDay());
+		log.info("今日查询出了{}个任务", taskEntities.size());
 
 		// 遍历，用VO类包装
 		List<TaskVO> taskVOList = new ArrayList<>();
@@ -75,18 +79,11 @@ public class TaskServiceImpl implements ITaskService {
 		return taskVOList;
 	}
 
-
 	@Override
-	public void updateTaskStatus(Long taskId, Integer status) {
-		// 先查询，再更新
-
-
+	public Boolean isRelatedTo(Long taskId) {
+		String userName = userService.getById(BaseContext.getUserId()).getName();
+		Optional<UserEntity> userEntity = userRepository.findById(userName);
+		UserEntity user = userEntity.orElseThrow(() -> new UserNotFoundException(userName));
+		return taskRepository.isTaskRelatedToPerson(user.getName(), taskId);
 	}
-
-	@Override
-	public Boolean isRelatedTo(String userName, Long taskId) {
-		return null;
-	}
-
-
 }

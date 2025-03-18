@@ -35,4 +35,8 @@ public class User implements Serializable {
     private Integer status;
 
     private LocalDateTime lastLoginTime;
+
+    private String telephone;
+
+    private String email;
 }

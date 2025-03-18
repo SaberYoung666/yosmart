@@ -2,6 +2,9 @@ package com.swpu.yosmart.service;
 
 import com.swpu.yosmart.entity.WorkTime;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.swpu.yosmart.entity.vo.RecentWorkTimeVO;
+
+import java.util.List;
 
 /**
  * <p>
@@ -13,4 +16,9 @@ import com.baomidou.mybatisplus.extension.service.IService;
  */
 public interface IWorkTimeService extends IService<WorkTime> {
 
+	/**
+	 * 获取当前用户近七天的工作时长
+	 * @return
+	 */
+	List<RecentWorkTimeVO> getRecentWorkTimes();
 }
