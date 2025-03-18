@@ -21,10 +21,10 @@ public class GlobalExceptionHandler {
 	 * @param <T>
 	 * @return
 	 */
-	// TODO 全局异常处理器，调试时可以关闭，部署时需要打开
-//	@ExceptionHandler
-//	public <T> ResultData<T> exceptionHandler(Exception ex) {
-//		log.error("异常信息：{}", ex.getMessage());
-//		return ResultData.fail(RC500.getCode(), ex.getMessage());
-//	}
+	// 全局异常处理器，调试时可以关闭，部署时需要打开
+	@ExceptionHandler
+	public <T> ResultData<T> exceptionHandler(Exception ex) {
+		log.error("异常信息：{}", ex.getMessage());
+		return ResultData.fail(RC500.getCode(), ex.getMessage());
+	}
 }

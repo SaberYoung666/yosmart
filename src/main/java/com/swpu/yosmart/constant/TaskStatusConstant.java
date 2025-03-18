@@ -4,7 +4,6 @@ package com.swpu.yosmart.constant;
  * 任务状态常量
  */
 public class TaskStatusConstant {
-	// TODO 更新任务状态
 	// 未开始
 	public static final Integer NOT_STARTED = -1;
 	// 进行中
