@@ -1,9 +1,11 @@
 package com.swpu.yosmart.service.impl;
 
+import com.baomidou.mybatisplus.extension.service.IService;
 import com.swpu.yosmart.entity.User;
 import com.swpu.yosmart.mapper.UserMapper;
-import com.swpu.yosmart.service.IUserService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.swpu.yosmart.service.IUserService;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
 /**

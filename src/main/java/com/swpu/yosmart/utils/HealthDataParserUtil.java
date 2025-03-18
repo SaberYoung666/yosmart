@@ -5,68 +5,65 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import java.io.*;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.sql.*;
-import java.time.*;
-import java.time.format.*;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-
-/**
- * 健康数据解析工具类（修复版）
- * 完整支持步数和睡眠数据入库
- */
 public class HealthDataParserUtil {
 
     // 数据类型映射
     private static final Map<String, String> DATA_TYPES = Map.of(
             "HKQuantityTypeIdentifierStepCount", "StepCount",
-            "HKCategoryTypeIdentifierSleepAnalysis", "SleepAnalysis"  // 确保表名存在
+            "HKCategoryTypeIdentifierSleepAnalysis", "SleepAnalysis",
+            "HKQuantityTypeIdentifierHeartRate", "HeartRate"
     );
 
     // 聚合方法
     private static final Map<String, String> AGGREGATION_METHODS = Map.of(
             "HKQuantityTypeIdentifierStepCount", "sum",
-            "HKCategoryTypeIdentifierSleepAnalysis", "duration"  // 与睡眠计算逻辑匹配
+            "HKCategoryTypeIdentifierSleepAnalysis", "duration",
+            "HKQuantityTypeIdentifierHeartRate", "average"
     );
 
-    public static void parseHealthDataToDatabase(String xmlFilePath, String dbUrl,
-                                                 String dbUser, String dbPassword, int userId)
+    public static void parseHealthDataToDatabase(String xmlFilePath, String dbUrl, String dbUser, String dbPassword, int userId)
             throws IOException, ParserConfigurationException, SAXException, SQLException {
 
         validateFilePath(xmlFilePath);
-        Map<String, Map<String, DailyData>> dailyData = parseXmlAndGroupData(xmlFilePath);
+        Map<String, Map<String, Map<String, DailyData>>> deviceData = parseXmlAndGroupByDevice(xmlFilePath);
 
         try (Connection conn = DriverManager.getConnection(dbUrl, dbUser, dbPassword)) {
-            for (Map.Entry<String, Map<String, DailyData>> dateEntry : dailyData.entrySet()) {
-                String date = dateEntry.getKey();
-                for (Map.Entry<String, DailyData> typeEntry : dateEntry.getValue().entrySet()) {
-                    String recordType = typeEntry.getKey();
-                    DailyData data = typeEntry.getValue();
-                    insertIntoDatabase(conn, date, recordType, data, userId);
+            for (Map.Entry<String, Map<String, Map<String, DailyData>>> deviceEntry : deviceData.entrySet()) {
+                String device = deviceEntry.getKey();
+                for (Map.Entry<String, Map<String, DailyData>> dateEntry : deviceEntry.getValue().entrySet()) {
+                    String date = dateEntry.getKey();
+                    for (Map.Entry<String, DailyData> typeEntry : dateEntry.getValue().entrySet()) {
+                        insertDataToDatabase(conn, date, typeEntry.getKey(), typeEntry.getValue(), userId, device);
+                    }
                 }
             }
         }
-        System.out.println("处理完成！步数和睡眠数据均已入库");
+        System.out.println("数据处理完成，不同设备数据已独立存储");
     }
 
-    private static Map<String, Map<String, DailyData>> parseXmlAndGroupData(String xmlFilePath)
+    private static Map<String, Map<String, Map<String, DailyData>>> parseXmlAndGroupByDevice(String xmlFilePath)
             throws ParserConfigurationException, SAXException, IOException {
 
-        Map<String, Map<String, DailyData>> dailyData = new HashMap<>();
-
-        Document doc = DocumentBuilderFactory.newInstance()
-                .newDocumentBuilder()
-                .parse(new File(xmlFilePath));
+        Map<String, Map<String, Map<String, DailyData>>> deviceData = new HashMap<>();
+        Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new File(xmlFilePath));
         NodeList records = doc.getElementsByTagName("Record");
 
-        System.out.println("发现记录数: " + records.getLength());
-
-        // 使用系统时区处理日期
         ZoneId systemZone = ZoneId.systemDefault();
         LocalDate thirtyDaysAgo = LocalDate.now().minusDays(30);
 
@@ -76,116 +73,123 @@ public class HealthDataParserUtil {
                 String type = record.getAttribute("type");
                 if (!DATA_TYPES.containsKey(type)) continue;
 
-                // 带时区解析（修正跨时区问题）
+                // 解析时间并转换时区
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z");
-                ZonedDateTime startZdt = ZonedDateTime.parse(
-                                record.getAttribute("startDate"), formatter)
-                        .withZoneSameInstant(systemZone);  // 转换为本地时区
-
+                ZonedDateTime startZdt = ZonedDateTime.parse(record.getAttribute("startDate"), formatter)
+                        .withZoneSameInstant(systemZone);
                 LocalDate recordDate = startZdt.toLocalDate();
+
                 if (recordDate.isBefore(thirtyDaysAgo)) continue;
 
-                String dateKey = recordDate.toString();
-                DailyData daily = dailyData
-                        .computeIfAbsent(dateKey, k -> new HashMap<>())
-                        .computeIfAbsent(type, k -> new DailyData());
-
-                // 特殊处理睡眠数据（精确计算持续时长）
-                if ("HKCategoryTypeIdentifierSleepAnalysis".equals(type)) {
-                    ZonedDateTime endZdt = ZonedDateTime.parse(
-                                    record.getAttribute("endDate"), formatter)
-                            .withZoneSameInstant(systemZone);
-
-                    long seconds = ChronoUnit.SECONDS.between(startZdt, endZdt);
-                    double hours = seconds / 3600.0;
-                    // 保留两位小数
-                    hours = Math.round(hours * 100.0) / 100.0;
-                    // 特殊处理：如果睡眠时间小于0.01小时（约36秒），视为无效数据
-                    if (hours < 0.01) {
-                        System.out.printf("[WARN] 跳过无效睡眠记录 %s（时长 %.2f 小时）%n", dateKey, hours);
-                        continue;
-                    }
-                    daily.values.add(hours);
-                    System.out.printf("[DEBUG] 睡眠记录 %s 时长: %.2f 小时%n", dateKey, hours); // 调试日志
-                } else {
-                    double value = Double.parseDouble(record.getAttribute("value"));
-                    daily.values.add(value);
+                // 获取设备信息
+                String device = record.getAttribute("sourceName");
+                if (device.isEmpty()) {
+                    device = parseDeviceFromXml(record.getAttribute("device"));
                 }
 
-            } catch (DateTimeException | NumberFormatException e) {
-                System.err.println("记录解析失败（索引 " + i + "）: " + e.getMessage());
+                // 初始化多层 Map 结构
+                deviceData.computeIfAbsent(device, k -> new HashMap<>())
+                        .computeIfAbsent(recordDate.toString(), k -> new HashMap<>())
+                        .computeIfAbsent(type, k -> new DailyData());
+
+                // 处理具体数据
+                DailyData dailyData = deviceData.get(device).get(recordDate.toString()).get(type);
+                if ("HKCategoryTypeIdentifierSleepAnalysis".equals(type)) {
+                    ZonedDateTime endZdt = ZonedDateTime.parse(record.getAttribute("endDate"), formatter)
+                            .withZoneSameInstant(systemZone);
+                    double hours = ChronoUnit.SECONDS.between(startZdt, endZdt) / 3600.0;
+                    if (hours >= 0.01) { // 过滤无效数据
+                        dailyData.values.add(hours);
+                    }
+                } else if ("HKQuantityTypeIdentifierHeartRate".equals(type)) {
+                    double value = Double.parseDouble(record.getAttribute("value"));
+                    // 可选：过滤异常心率值（如小于30或大于200）
+                    if (value >= 30 && value <= 200) {
+                        dailyData.values.add(value);
+                    } else {
+                        System.out.printf("[WARN] 跳过异常心率值 %.1f%n", value);
+                    }
+                } else {
+                    dailyData.values.add(Double.parseDouble(record.getAttribute("value")));
+                }
+
+            } catch (Exception e) {
+                System.err.printf("解析记录 %d 失败: %s%n", i, e.getMessage());
             }
         }
-        return dailyData;
+        return deviceData;
     }
 
-    private static void insertIntoDatabase(Connection conn, String date,
-                                           String recordType, DailyData data, int userId) throws SQLException {
+    private static void insertDataToDatabase(Connection conn, String date, String recordType, DailyData data, int userId, String device)
+            throws SQLException {
 
         String table = DATA_TYPES.get(recordType);
-        String checkSql = String.format("SELECT COUNT(*) FROM %s WHERE date = ? AND type = ? AND user_id = ?", table);
-        String insertSql = String.format(
-                "INSERT INTO %s (date, type, value, user_id) " +
-                        "VALUES (?, ?, ?, ?)", table);
+        String checkSql = "SELECT COUNT(*) FROM " + table + " WHERE date = ? AND type = ? AND user_id = ? AND device = ?";
+        String insertSql = "INSERT INTO " + table + " (date, type, value, user_id, device) VALUES (?, ?, ?, ?, ?)";
 
         try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
             checkStmt.setString(1, date);
             checkStmt.setString(2, recordType);
             checkStmt.setInt(3, userId);
+            checkStmt.setString(4, device);
             ResultSet rs = checkStmt.executeQuery();
             if (rs.next() && rs.getInt(1) > 0) {
-                System.out.printf("[INFO] 跳过已存在记录 %s/%s/%d%n", table, date, userId);
+                System.out.printf("跳过已存在记录：%s/%s/%s%n", date, recordType, device);
                 return;
             }
         }
 
         try (PreparedStatement insertStmt = conn.prepareStatement(insertSql)) {
+            double value = calculateAggregatedValue(recordType, data.values);
+            value = Math.round(value * 100.0) / 100.0;
+
             insertStmt.setString(1, date);
             insertStmt.setString(2, recordType);
-            double value = calculateAggregatedValue(recordType, data.values);
-            // 保留两位小数
-            value = Math.round(value * 100.0) / 100.0;
-            // 特殊处理：如果睡眠时间聚合值小于0.01小时，设置为0.5小时（可调整）
-            if ("HKCategoryTypeIdentifierSleepAnalysis".equals(recordType) && value < 0.01) {
-                value = 0.5; // 设置默认值
-                System.out.printf("[INFO] 睡眠时间过短，设置为默认值 %.2f 小时 %n", value);
-            }
             insertStmt.setDouble(3, value);
             insertStmt.setInt(4, userId);
+            insertStmt.setString(5, device);
 
             insertStmt.executeUpdate();
-            System.out.printf("[SUCCESS] 插入 %s 表 %s 数据%n", table, date);
-        } catch (SQLException e) {
-            System.err.printf("[ERROR] 插入失败 %s/%s: %s%n", table, date, e.getMessage());
-            throw e;
+            System.out.printf("成功插入数据：%s/%s/%s%n", date, recordType, device);
+        }
+    }
+
+    // 从 device 属性中解析设备名称
+    private static String parseDeviceFromXml(String deviceXml) {
+        try {
+            int start = deviceXml.indexOf("name:") + 5;
+            int end = deviceXml.indexOf(",", start);
+            return deviceXml.substring(start, end).trim();
+        } catch (Exception e) {
+            return "UnknownDevice";
+        }
+    }
+
+    // 文件校验
+    private static void validateFilePath(String path) throws FileNotFoundException {
+        File file = new File(path);
+        if (!file.exists() || file.isDirectory()) {
+            throw new FileNotFoundException("无效文件路径: " + path);
         }
     }
 
     // 辅助方法：计算聚合值
     private static double calculateAggregatedValue(String recordType, List<Double> values) {
         if (values.isEmpty()) return 0.0;
-        return AGGREGATION_METHODS.get(recordType).equals("sum") ?
-                values.stream().mapToDouble(Double::doubleValue).sum() :
-                values.stream().mapToDouble(Double::doubleValue).sum(); // 睡眠直接使用总时长
-    }
-
-    // 文件校验
-    private static void validateFilePath(String path) throws FileNotFoundException {
-        File file = new File(path);
-        if (!file.exists()) {
-            throw new FileNotFoundException("文件不存在: " + path);
-        }
-        if (file.isDirectory()) {
-            throw new FileNotFoundException("路径指向目录而非文件: " + path);
+        switch (AGGREGATION_METHODS.get(recordType)) {
+            case "sum":
+                return values.stream().mapToDouble(Double::doubleValue).sum();
+            case "duration":
+                return values.stream().mapToDouble(Double::doubleValue).sum();
+            case "average":
+                return values.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+            default:
+                return 0.0;
         }
     }
 
     // 数据容器
     private static class DailyData {
         List<Double> values = new ArrayList<>();
-
-        public boolean isValid() {
-            return !values.isEmpty();
-        }
     }
 }

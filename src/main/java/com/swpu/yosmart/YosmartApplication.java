@@ -10,7 +10,6 @@ import org.springframework.context.annotation.Bean;
 @SpringBootApplication
 @MapperScan("com.swpu.yosmart.mapper")
 public class YosmartApplication {
-
 	public static void main(String[] args) {
 		SpringApplication.run(YosmartApplication.class, args);
 	}
