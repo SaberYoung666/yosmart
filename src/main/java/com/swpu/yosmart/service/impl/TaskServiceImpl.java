@@ -40,14 +40,13 @@ public class TaskServiceImpl implements ITaskService {
 		String userName = userService.getById(BaseContext.getUserId()).getName();
 		Optional<UserEntity> userEntity = userRepository.findById(userName);
 		UserEntity user = userEntity.orElseThrow(() -> new UserNotFoundException(userName));
-		log.info("startTime:{},endTime:{}", oneDay.atStartOfDay(), oneDay.plusDays(1).atStartOfDay());
 		// 查询与该用户有关的日程中，开始时间与结束时间包含该天的所有日程（应当是结束时间大于等于该天0点0分且开始时间小于等于该天23点59分）
 		List<TaskEntity> taskEntities = taskRepository.getTasksFromTo(user.getName(), oneDay.atStartOfDay(), oneDay.plusDays(1).atStartOfDay());
-		log.info("今日查询出了{}个任务", taskEntities.size());
 
 		// 遍历，用VO类包装
 		List<TaskVO> taskVOList = new ArrayList<>();
 		taskEntities.forEach(taskEntity -> {
+			log.info("taskEntity: {}", taskEntity.getDescription());
 			TaskVO taskVO = new TaskVO();
 			taskVO.setId(taskEntity.getId());
 			taskVO.setDescription(taskEntity.getDescription());
@@ -85,5 +84,30 @@ public class TaskServiceImpl implements ITaskService {
 		Optional<UserEntity> userEntity = userRepository.findById(userName);
 		UserEntity user = userEntity.orElseThrow(() -> new UserNotFoundException(userName));
 		return taskRepository.isTaskRelatedToPerson(user.getName(), taskId);
+	}
+
+	@Override
+	public List<TaskVO> fuzzySearch(String keyword) {
+		String userName = userService.getById(BaseContext.getUserId()).getName();
+		Optional<UserEntity> userEntity = userRepository.findById(userName);
+		UserEntity user = userEntity.orElseThrow(() -> new UserNotFoundException(userName));
+		List<TaskEntity> taskEntities = taskRepository.fuzzySearch(user.getName(), keyword);
+
+		List<TaskVO> taskVOList = new ArrayList<>();
+		taskEntities.forEach(taskEntity -> {
+			TaskVO taskVO = new TaskVO();
+			taskVO.setId(taskEntity.getId());
+			taskVO.setDescription(taskEntity.getDescription());
+			taskVO.setPriority(taskEntity.getPriority());
+			taskVO.setStatus(taskEntity.getStatus());
+			taskVO.setRepeat(taskEntity.getRepeat());
+			taskVO.setStartTime(taskEntity.getStartTime());
+			taskVO.setEndTime(taskEntity.getEndTime());
+			taskVO.setTags(taskEntity.getTags());
+			taskVO.setCreatedAt(taskEntity.getCreatedAt());
+			taskVO.setUpdatedAt(taskEntity.getUpdatedAt());
+			taskVOList.add(taskVO);
+		});
+		return taskVOList;
 	}
 }

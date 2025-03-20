@@ -246,6 +246,7 @@ public class TaskController {
 
 	/**
 	 * 修改任务
+	 *
 	 * @param taskUpdateDTOS
 	 * @return
 	 */
@@ -318,7 +319,17 @@ public class TaskController {
 	 */
 	@GetMapping("/getOneDay")
 	public ResultData<List<TaskVO>> getOneDayTask(@DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-		log.info("查询{}的日程", date);
 		return ResultData.success(taskService.getOneDayTaskVOS(date));
+	}
+
+	/**
+	 * 模糊查询
+	 *
+	 * @param keyword
+	 * @return
+	 */
+	@GetMapping("/fuzzySearch")
+	public ResultData<List<TaskVO>> fuzzySearch(@RequestParam String keyword) {
+		return ResultData.success(taskService.fuzzySearch(keyword));
 	}
 }

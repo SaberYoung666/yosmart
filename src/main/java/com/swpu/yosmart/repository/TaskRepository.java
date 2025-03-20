@@ -39,6 +39,7 @@ public interface TaskRepository extends Neo4jRepository<TaskEntity, Long> {
 
 	/**
 	 * 修改任务的状态
+	 *
 	 * @param taskId
 	 * @param status
 	 */
@@ -68,4 +69,14 @@ public interface TaskRepository extends Neo4jRepository<TaskEntity, Long> {
 	 */
 	@Query("MATCH (t:Task) WHERE NOT (t)--() DELETE t")
 	void clearTask();
+
+	/**
+	 * 模糊查询
+	 *
+	 * @param userName
+	 * @param keyword
+	 * @return
+	 */
+	@Query("MATCH (p:Person {name: $userName}) MATCH (t:Task) WHERE t.description CONTAINS $keyword AND ( EXISTS { MATCH (p)-[:ASSIGNED_TO]->(t) } OR EXISTS { MATCH (p)-[:ASSIGNED_TO]->(assigned_task:Task)-[:DEPENDS_ON]->(t) } ) RETURN t")
+	List<TaskEntity> fuzzySearch(@Param("userName") String userName, @Param("keyword") String keyword);
 }
